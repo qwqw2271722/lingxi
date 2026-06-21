@@ -164,7 +164,7 @@ body {
 
 .topbar { padding: var(--app-padding) var(--content-side-padding) 16px; display: flex; align-items: flex-end; justify-content: space-between; flex-shrink: 0; transition: padding 0.15s ease; }
 .page-label { font-size: calc(var(--font-base-size) + 10px); font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
-.ai-clear-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 8px; color: var(--text-tertiary); transition: all 0.15s; }
+.ai-clear-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 8px; color: var(--text-tertiary); transition: all 0.15s; position: relative; z-index: 10; }
 .ai-clear-btn:hover { background: rgba(0,0,0,0.05); color: var(--accent-orange); }
 .content { flex: 1; overflow-y: auto; padding: 16px var(--content-side-padding) 80px; transition: padding 0.15s ease; }
 .content::-webkit-scrollbar { width: 0px; }
@@ -422,7 +422,7 @@ body {
     </div>
 
     <div class="view" id="view-review">
-      <div class="topbar"><span class="page-label" id="label-ai-review">AI 复盘</span><button class="ai-clear-btn" onclick="clearAiHistory()" title="清空对话">🗑</button></div>
+      <div class="topbar"><span class="page-label" id="label-ai-review">AI 复盘</span><button class="ai-clear-btn" onclick="clearAiHistory()" title="清空对话" style="font-size:18px;line-height:1;">🗑</button></div>
       <div class="content" id="review-content">
         <div class="ai-chat-container">
           <div class="ai-messages" id="ai-messages"></div>
@@ -1315,9 +1315,10 @@ switchView = function(name) {
 };
 
 function clearAiHistory() {
-  if (confirm('确定要清空所有 AI 对话记录吗？此操作不可撤销。')) {
-    localStorage.removeItem('lingxi_ai_history');
-    loadAiHistory();
+  localStorage.removeItem('lingxi_ai_history');
+  const container = document.getElementById('ai-messages');
+  if (container) {
+    container.innerHTML = '<div class="ai-welcome">👋 我是你的 AI 复盘助手，基于你的想法条目帮你深度思考。<br>试试问我："最近的想法有什么共同主题？"</div>';
   }
 }
 
