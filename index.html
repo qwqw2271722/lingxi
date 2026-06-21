@@ -286,6 +286,21 @@ body {
 .ai-input-row { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.03); flex-shrink: 0; }
 .ai-input { flex: 1; background: rgba(0,0,0,0.02); border: none; border-radius: 20px; padding: 10px 18px; font-size: var(--font-base-size); color: var(--text); outline: none; font-family: inherit; }
 .ai-send-btn { width: 38px; height: 38px; border-radius: 50%; background: var(--text); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ai-bubble { margin-bottom: 14px; display: flex; }
+.ai-user { justify-content: flex-end; }
+.ai-assistant { justify-content: flex-start; }
+.ai-bubble-inner { max-width: 80%; padding: 10px 16px; border-radius: 16px; font-size: var(--font-base-size); line-height: 1.55; word-break: break-word; }
+.ai-user .ai-bubble-inner { background: var(--text); color: #fff; border-bottom-right-radius: 4px; }
+.ai-assistant .ai-bubble-inner { background: var(--bg-card); color: var(--text); border-bottom-left-radius: 4px; }
+.ai-welcome { text-align: center; color: var(--text-secondary); font-size: 13px; line-height: 1.7; padding: 24px 8px; }
+
+.typing-dots { display: inline-flex; gap: 3px; padding: 2px 0; }
+.typing-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--text-secondary); animation: typingBounce 1.4s infinite ease-in-out; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 
 /* ======== 🌟 移动端响应式布局重构 ======== */
 @media (max-width: 768px) {
@@ -542,7 +557,7 @@ function handleTagInput(e) {
 }
 
 // 模拟种子数据
-let sandboxEntries = [
+const sandboxEntries = [
   { id: 'sb1', text: '极简不是缺乏，而是克制。正如迪特·拉姆斯所言：Less but Better。', tags: ['设计美学', '极简主义'], createdAt: new Date().toISOString() },
   { id: 'sb2', text: '构建第二大脑的核心在于内化，而不在于无限度地收集松散的信息。', tags: ['深度复盘'], createdAt: new Date().toISOString() }
 ];
@@ -571,12 +586,20 @@ function editMainline() {
   document.getElementById('mainline-hint').textContent = '按 Enter 保存';
 }
 
-function saveMainline() {
+async function saveMainline() {
   const input = document.getElementById('mainline-input');
   if (!input) return;
   state.mainline = input.value.trim();
   renderMainline();
   document.getElementById('mainline-hint').textContent = '点击修改';
+  if (currentUser) {
+    await sb.from('lx_profile').upsert({
+      user_id: currentUser.id,
+      mainline: state.mainline,
+      todos: state.todos,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  }
 }
 
 function mainlineKey(e) {
@@ -710,15 +733,22 @@ function renderTodos() {
   }
 }
 
-function toggleTodo(id) {
+async function toggleTodo(id) {
   const todo = state.todos.find(t => t.id === id);
   if (todo) {
     todo.completed = !todo.completed;
     renderTodos();
+    if (currentUser) {
+      await sb.from('lx_profile').upsert({
+        user_id: currentUser.id,
+        todos: state.todos,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+    }
   }
 }
 
-function homeTodoKey(e) {
+async function homeTodoKey(e) {
   if (e.key !== 'Enter') return;
   const input = document.getElementById('home-todo-input');
   const text = input.value.trim();
@@ -726,9 +756,16 @@ function homeTodoKey(e) {
   state.todos.unshift({ id: 'todo_' + Date.now(), text, completed: false, createdAt: new Date().toISOString() });
   input.value = '';
   renderTodos();
+  if (currentUser) {
+    await sb.from('lx_profile').upsert({
+      user_id: currentUser.id,
+      todos: state.todos,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  }
 }
 
-function libTodoKey(e) {
+async function libTodoKey(e) {
   if (e.key !== 'Enter') return;
   const input = document.getElementById('lib-todo-input');
   const text = input.value.trim();
@@ -736,6 +773,13 @@ function libTodoKey(e) {
   state.todos.unshift({ id: 'lib_' + Date.now(), text, completed: false, createdAt: new Date().toISOString() });
   input.value = '';
   renderTodos();
+  if (currentUser) {
+    await sb.from('lx_profile').upsert({
+      user_id: currentUser.id,
+      todos: state.todos,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  }
 }
 
 function switchView(name) {
@@ -1019,6 +1063,8 @@ async function handleLogout() {
   await sb.auth.signOut();
   currentUser = null;
   state.entries = [...sandboxEntries];
+  state.mainline = '';
+  state.todos = [];
   location.reload();
 }
 
@@ -1068,6 +1114,23 @@ function toggleAuthMode() {
   }
 }
 
+async function loadProfile() {
+  if (!currentUser) return;
+  try {
+    const { data, error } = await sb.from('lx_profile')
+      .select('mainline, todos')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      state.mainline = data.mainline || '';
+      state.todos = Array.isArray(data.todos) ? data.todos : [];
+    }
+  } catch (err) {
+    console.error('加载用户配置失败:', err);
+  }
+}
+
 async function loadEntriesFromDB() {
   if (!currentUser) return;
   try {
@@ -1080,14 +1143,15 @@ async function loadEntriesFromDB() {
       state.entries = data.map(e => ({
         id: e.id,
         text: e.text,
-        tags: [],
+        tags: e.tags || [],
         createdAt: e.created_at
       }));
     } else {
-      if (state.entries.length === 0) state.entries = [...sandboxEntries];
+      state.entries = [...sandboxEntries];
     }
   } catch (err) {
     console.error('加载数据库条目失败:', err);
+    state.entries = [...sandboxEntries];
   }
 }
 
@@ -1098,6 +1162,7 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     currentUser = session.user;
+    await loadProfile();
     await loadEntriesFromDB();
   }
   renderProfilePanel();
@@ -1108,14 +1173,116 @@ sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
     currentUser = session.user;
     renderProfilePanel();
-    loadEntriesFromDB().then(() => renderAll());
+    Promise.all([loadProfile(), loadEntriesFromDB()]).then(() => renderAll());
   } else if (event === 'SIGNED_OUT') {
     currentUser = null;
     state.entries = [...sandboxEntries];
+    state.mainline = '';
+    state.todos = [];
     renderProfilePanel();
     renderAll();
   }
 });
+
+// ====== 🤖 AI 复盘 ======
+const AI_FUNCTION_URL = 'https://rywlppvebqrcmoetzllw.supabase.co/functions/v1/lx-ai-chat';
+let aiLoading = false;
+
+function aiInputKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAiMessage();
+  }
+}
+
+async function sendAiMessage() {
+  const input = document.getElementById('ai-input');
+  const btn = document.getElementById('ai-send-btn');
+  const msg = input.value.trim();
+  if (!msg || aiLoading) return;
+
+  input.value = '';
+  aiLoading = true;
+  btn.disabled = true;
+  appendAiBubble('user', msg);
+
+  const typingEl = appendAiBubble('assistant', '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>', true);
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      typingEl.innerHTML = escHtml('请先登录后再使用 AI 复盘功能。');
+      aiLoading = false; btn.disabled = false;
+      return;
+    }
+
+    const res = await fetch(AI_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: sb.supabaseKey
+      },
+      body: JSON.stringify({ message: msg, entries: state.entries })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (res.status === 404) {
+        typingEl.innerHTML = escHtml('AI 复盘功能尚未配置，请联系管理员。');
+      } else {
+        typingEl.innerHTML = escHtml(errData.error || 'AI 服务暂时不可用，请稍后再试。');
+      }
+      aiLoading = false; btn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    typingEl.innerHTML = escHtml(data.reply || '（AI 没有返回内容）');
+  } catch (err) {
+    console.error('AI request failed:', err);
+    typingEl.innerHTML = escHtml('网络请求失败，请检查连接后重试。');
+  }
+  aiLoading = false;
+  btn.disabled = false;
+}
+
+function appendAiBubble(role, content, isTyping) {
+  const container = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = 'ai-bubble ai-' + role + (isTyping ? ' ai-typing' : '');
+  div.innerHTML = '<div class="ai-bubble-inner">' + content + '</div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+async function loadAiHistory() {
+  if (!currentUser) return;
+  const container = document.getElementById('ai-messages');
+  container.innerHTML = '<div class="ai-welcome">👋 我是你的 AI 复盘助手，基于你的想法条目帮你深度思考。<br>试试问我："最近的想法有什么共同主题？"</div>';
+  try {
+    const { data, error } = await sb.from('lx_ai_logs')
+      .select('role, content')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: true })
+      .limit(40);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      container.innerHTML = '';
+      data.forEach(d => appendAiBubble(d.role, escHtml(d.content)));
+    }
+  } catch (err) {
+    console.error('加载 AI 对话历史失败:', err);
+  }
+}
+
+// 切换到 AI 复盘视图时加载历史
+const origSwitchView = switchView;
+switchView = function(name) {
+  origSwitchView(name);
+  if (name === 'review') loadAiHistory();
+};
 
 init();
 </script>
