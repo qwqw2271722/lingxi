@@ -1193,10 +1193,9 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 
 // ====== 🤖 AI 复盘 ======
-// NVIDIA NIM: DeepSeek-V4-Flash, 免费无限调用, 中国大陆直连
-const AI_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const AI_API_KEY = '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';
-const AI_MODEL = 'deepseek-ai/deepseek-v4-flash';
+// 通过 Supabase Edge Function 反向代理调用 NVIDIA NIM（解决浏览器 CORS 限制）
+// Edge Function: lx-ai-chat → NVIDIA NIM qwen/qwen3.5-122b-a10b
+const AI_PROXY_URL = 'https://rywlppvebqrcmoetzllw.supabase.co/functions/v1/lx-ai-chat';
 let aiLoading = false;
 
 function aiInputKey(e) {
@@ -1223,34 +1222,28 @@ async function sendAiMessage() {
   try {
     const entriesCtx = state.entries.slice(0, 20).map((e, i) => `${i + 1}. ${e.text}${e.tags?.length ? ' [' + e.tags.join(', ') + ']' : ''}`).join('\n');
 
-    const res = await fetch(AI_API_URL, {
+    const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${AI_API_KEY}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: 'system', content: `你是"灵隙"的 AI 复盘助手。帮用户深度复盘他们的想法，发现联系、提出洞察。简洁有料，像朋友聊天。用中文。\n\n用户当前的想法条目：\n${entriesCtx || '(暂无)'}` },
-          { role: 'user', content: msg }
-        ],
-        temperature: 0.7,
-        max_tokens: 1024
-      })
+      body: JSON.stringify({ message: msg, entries: state.entries })
     });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      typingEl.innerHTML = escHtml(errData.error?.message || 'AI 服务暂时不可用，请稍后再试。');
+      if (res.status === 404) {
+        typingEl.innerHTML = escHtml('AI 复盘功能尚未部署，请联系管理员。');
+      } else {
+        typingEl.innerHTML = escHtml(errData.error || 'AI 服务暂时不可用，请稍后再试。');
+      }
       aiLoading = false; btn.disabled = false;
       return;
     }
 
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || '（AI 没有返回内容）';
-    typingEl.innerHTML = escHtml(reply);
-    saveAiHistory('assistant', reply);
+    typingEl.innerHTML = escHtml(data.reply || '（AI 没有返回内容）');
+    saveAiHistory('assistant', data.reply || '');
   } catch (err) {
     console.error('AI request failed:', err);
     typingEl.innerHTML = escHtml('网络请求失败，请检查连接后重试。');
