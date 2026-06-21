@@ -19,10 +19,10 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 
 :root {
-  --bg-global: #e5e5ea;       
+  --bg-global: #d1d1d6;       
   --bg-panel: #ffffff;        
-  --bg-card: #ffffff;         
-  --bg-card-hover: #f9f9fb;   
+  --bg-card: #f2f2f7;         
+  --bg-card-hover: #e8e8ed;   
   
   --text: #111111;            
   --text-secondary: #636366;  
@@ -35,7 +35,7 @@
   --font-base-size: 14px;
   --label-font-size: 15px;     
   --label-letter-spacing: 0.15em; 
-  --gap-base: 12px;
+  --gap-base: 11px;
   --radius-md: 13px;
   
   --radius-lg: calc(var(--radius-md) + 6px);
@@ -44,9 +44,9 @@
   --shadow-hover: 0 20px 40px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.01);
   --shadow-inset: inset 1px 1px 3px rgba(0,0,0,0.01), inset -1px -1px 3px rgba(255,255,255,0.8);
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --dot-size: 11px;
-  --dot-gap-x: 12px;
-  --dot-gap-y: 10px;
+  --dot-size: 12px;
+  --dot-gap-x: 4px;
+  --dot-gap-y: 8px;
 
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -69,10 +69,10 @@
 }
 
 [data-theme="light"] {
-  --bg-global: #e5e5ea;
+  --bg-global: #d1d1d6;
   --bg-panel: #ffffff;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f9f9fb;
+  --bg-card: #f2f2f7;
+  --bg-card-hover: #e8e8ed;
   --text: #111111;
   --text-secondary: #636366;
   --text-tertiary: #c4c4c6;
@@ -224,6 +224,8 @@ body {
 .entry-card { background: var(--bg-card); box-shadow: var(--shadow-inset); border-radius: var(--radius-md); padding: 20px 16px; margin-bottom: 8px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
 .entry-card:hover { background: var(--bg-card-hover); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .entry-text-display { font-size: var(--font-base-size); line-height: 1.75; color: var(--text); cursor: pointer; }
+.entry-tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.entry-tag { font-size: 10px; color: var(--text-secondary); background: rgba(0,0,0,0.03); padding: 2px 8px; border-radius: 6px; }
 
 /* ======== 高阶设计控制版块 ======== */
 .tuner-group { margin-bottom: 22px; }
@@ -588,7 +590,7 @@ function renderHomeEntries() {
   document.getElementById('home-entries').innerHTML = state.entries.slice(0, 3).map(e => `
     <div class="entry-card" onclick="openEntryDetail('${e.id}')">
       <div class="entry-text-display">${escHtml(e.text)}</div>
-      ${e.tags && e.tags.length ? `<div style="margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap;">${e.tags.map(t => `<span style="font-size: 10px; color: var(--text-tertiary); border: 1px solid rgba(0,0,0,0.06); padding: 3px 8px; border-radius: 10px;"># ${escHtml(t)}</span>`).join('')}</div>` : ''}
+      ${e.tags && e.tags.length ? `<div class="entry-tag-row">${e.tags.map(t => `<span class="entry-tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
     </div>`).join(''); 
 }
 
@@ -596,7 +598,7 @@ function renderAllEntries() {
   document.getElementById('all-entries').innerHTML = state.entries.map(e => `
     <div class="entry-card" onclick="openEntryDetail('${e.id}')">
       <div class="entry-text-display">${escHtml(e.text)}</div>
-      ${e.tags && e.tags.length ? `<div style="margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap;">${e.tags.map(t => `<span style="font-size: 10px; color: var(--text-tertiary); border: 1px solid rgba(0,0,0,0.06); padding: 3px 8px; border-radius: 10px;"># ${escHtml(t)}</span>`).join('')}</div>` : ''}
+      ${e.tags && e.tags.length ? `<div class="entry-tag-row">${e.tags.map(t => `<span class="entry-tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
     </div>`).join(''); 
 }
 
@@ -606,7 +608,7 @@ function filterEntries() {
   document.getElementById('all-entries').innerHTML = filtered.map(e => `
     <div class="entry-card" onclick="openEntryDetail('${e.id}')">
       <div class="entry-text-display">${escHtml(e.text)}</div>
-      ${e.tags && e.tags.length ? `<div style="margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap;">${e.tags.map(t => `<span style="font-size: 10px; color: var(--text-tertiary); border: 1px solid rgba(0,0,0,0.06); padding: 3px 8px; border-radius: 10px;"># ${escHtml(t)}</span>`).join('')}</div>` : ''}
+      ${e.tags && e.tags.length ? `<div class="entry-tag-row">${e.tags.map(t => `<span class="entry-tag">${escHtml(t)}</span>`).join('')}</div>` : ''}
     </div>`).join('');
 }
 
@@ -1126,24 +1128,24 @@ init();
   </div>
   <div class="tuning-panel-body">
     <div class="tuning-item">
-      <div class="tuner-label-row"><span>圆点大小</span><span id="dot-size-val">11px</span></div>
-      <input type="range" class="tuner-slider" min="6" max="20" value="11" id="dot-size-slider" oninput="updateDotSize(this.value)">
+      <div class="tuner-label-row"><span>圆点大小</span><span id="dot-size-val">12px</span></div>
+      <input type="range" class="tuner-slider" min="6" max="20" value="12" id="dot-size-slider" oninput="updateDotSize(this.value)">
     </div>
     <div class="tuning-item">
-      <div class="tuner-label-row"><span>圆点左右间距</span><span id="dot-gap-x-val">12px</span></div>
-      <input type="range" class="tuner-slider" min="4" max="24" value="12" id="dot-gap-x-slider" oninput="updateDotGapX(this.value)">
+      <div class="tuner-label-row"><span>圆点左右间距</span><span id="dot-gap-x-val">4px</span></div>
+      <input type="range" class="tuner-slider" min="4" max="24" value="4" id="dot-gap-x-slider" oninput="updateDotGapX(this.value)">
     </div>
     <div class="tuning-item">
-      <div class="tuner-label-row"><span>圆点上下间距</span><span id="dot-gap-y-val">10px</span></div>
-      <input type="range" class="tuner-slider" min="4" max="24" value="10" id="dot-gap-y-slider" oninput="updateDotGapY(this.value)">
+      <div class="tuner-label-row"><span>圆点上下间距</span><span id="dot-gap-y-val">8px</span></div>
+      <input type="range" class="tuner-slider" min="4" max="24" value="8" id="dot-gap-y-slider" oninput="updateDotGapY(this.value)">
     </div>
     <div class="tuning-item">
       <div class="tuner-label-row"><span>圆角半径</span><span id="radius-val">13px</span></div>
       <input type="range" class="tuner-slider" min="4" max="24" value="13" id="radius-slider" oninput="updateRadius(this.value)">
     </div>
     <div class="tuning-item">
-      <div class="tuner-label-row"><span>卡片间距</span><span id="spacing-val">12px</span></div>
-      <input type="range" class="tuner-slider" min="6" max="24" value="12" id="spacing-slider" oninput="updateSpacing(this.value)">
+      <div class="tuner-label-row"><span>卡片间距</span><span id="spacing-val">11px</span></div>
+      <input type="range" class="tuner-slider" min="6" max="24" value="11" id="spacing-slider" oninput="updateSpacing(this.value)">
     </div>
     <div class="tuning-item">
       <div class="tuner-label-row"><span>内边距</span><span id="padding-val">42px</span></div>
