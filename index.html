@@ -609,14 +609,14 @@ async function saveProfileToDB() {
   const profileData = { mainline: state.mainline, todos: state.todos };
   if (existing && existing.length > 0) {
     await sb.from('lx_entries').update({
-      notes: JSON.stringify(profileData),
+      source: JSON.stringify(profileData),
       updated_at: new Date().toISOString()
     }).eq('id', existing[0].id);
   } else {
     await sb.from('lx_entries').insert({
       user_id: currentUser.id,
       text: '__profile__',
-      notes: JSON.stringify(profileData),
+      source: JSON.stringify(profileData),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -1121,13 +1121,13 @@ async function loadProfile() {
   if (!currentUser) return;
   try {
     const { data, error } = await sb.from('lx_entries')
-      .select('notes')
+      .select('source')
       .eq('user_id', currentUser.id)
       .eq('text', '__profile__')
       .maybeSingle();
     if (error) throw error;
-    if (data && data.notes) {
-      const profile = JSON.parse(data.notes);
+    if (data && data.source) {
+      const profile = JSON.parse(data.source);
       state.mainline = profile.mainline || '';
       state.todos = Array.isArray(profile.todos) ? profile.todos : [];
     }
