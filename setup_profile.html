@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵隙 一键建表</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f7; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+  .card { background: #fff; border-radius: 20px; padding: 32px; max-width: 500px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  h1 { font-size: 22px; margin-bottom: 6px; }
+  .sub { font-size: 13px; color: #8e8e93; margin-bottom: 24px; }
+  .step { margin-bottom: 20px; }
+  .step-label { font-size: 12px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .step-desc { font-size: 14px; color: #333; line-height: 1.6; }
+  input { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; margin-top: 6px; }
+  input:focus { border-color: #ff5c00; }
+  button { width: 100%; padding: 12px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+  .btn-primary { background: #111; color: #fff; margin-top: 8px; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: #fff; color: #c0392b; border: 1px solid #e0e0e0; margin-top: 4px; font-size: 13px; }
+  .log { margin-top: 20px; padding: 12px; background: #f9f9f9; border-radius: 10px; font-size: 12px; font-family: monospace; max-height: 200px; overflow-y: auto; white-space: pre-wrap; color: #333; }
+  .log .ok { color: #2e7d32; }
+  .log .err { color: #c0392b; }
+  .log .info { color: #636366; }
+  a { color: #ff5c00; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔧 灵隙 一键建表</h1>
+  <div class="sub">在 Supabase 中创建 lx_profile 表，开通主线 & 目标清单线上同步</div>
+
+  <div class="step">
+    <div class="step-label">Step 1 — 登录 Supabase</div>
+    <div class="step-desc">输入 Supabase 项目的 <b>Service Role Key</b>（不是 anon key）。<br>
+    <a href="https://supabase.com/dashboard/project/rywlppvebqrcmoetzllw/settings/api" target="_blank">👉 在这里找到 service_role key</a></div>
+    <input id="service-key" placeholder="eyJhbGciOi...（service_role key）">
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 2 — 执行建表</div>
+    <button class="btn-primary" id="btn-create" onclick="createTable()">⚡ 一键创建 lx_profile 表</button>
+    <button class="btn-danger" id="btn-delete" onclick="deleteTable()" style="display:none;">🗑 删除表（回滚）</button>
+  </div>
+
+  <div id="log" class="log" style="display:none;"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rywlppvebqrcmoetzllw.supabase.co';
+
+function log(msg, type) {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  el.innerHTML += `<span class="${type || 'info'}">${msg}</span>\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function createTable() {
+  const key = document.getElementById('service-key').value.trim();
+  if (!key) return log('请先输入 Service Role Key', 'err');
+
+  const btn = document.getElementById('btn-create');
+  btn.disabled = true;
+  btn.textContent = '⏳ 正在建表...';
+  document.getElementById('log').innerHTML = '';
+
+  log('>>> 开始创建 lx_profile 表...', 'info');
+
+  try {
+    // 使用 Supabase REST API + service_role key 执行 SQL
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+        'apikey': key
+      },
+      body: JSON.stringify({
+        sql: `
+CREATE TABLE IF NOT EXISTS lx_profile (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT UNIQUE NOT NULL,
+  mainline    TEXT DEFAULT '',
+  todos       JSONB DEFAULT '[]'::jsonb,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE lx_profile ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'lx_profile_select_policy' AND tablename = 'lx_profile'
+  ) THEN
+    CREATE POLICY lx_profile_select_policy ON lx_profile
+      FOR SELECT USING (auth.uid()::text = user_id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'lx_profile_insert_policy' AND tablename = 'lx_profile'
+  ) THEN
+    CREATE POLICY lx_profile_insert_policy ON lx_profile
+      FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'lx_profile_update_policy' AND tablename = 'lx_profile'
+  ) THEN
+    CREATE POLICY lx_profile_update_policy ON lx_profile
+      FOR UPDATE USING (auth.uid()::text = user_id) WITH CHECK (auth.uid()::text = user_id);
+  END IF;
+END $$;
+        `.trim()
+      })
+    });
+
+    // 如果 rpc 不可用，尝试直接用 Management API
+    if (!res.ok && res.status === 404) {
+      log('rpc/exec_sql 不可用，尝试 Management API...', 'info');
+      
+      const mgmtRes = await fetch(`https://api.supabase.com/v1/projects/rywlppvebqrcmoetzllw/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          query: `
+CREATE TABLE IF NOT EXISTS lx_profile (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT UNIQUE NOT NULL,
+  mainline TEXT DEFAULT '',
+  todos JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE lx_profile ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY lx_profile_select_policy ON lx_profile FOR SELECT USING (auth.uid()::text = user_id);
+CREATE POLICY lx_profile_insert_policy ON lx_profile FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+CREATE POLICY lx_profile_update_policy ON lx_profile FOR UPDATE USING (auth.uid()::text = user_id) WITH CHECK (auth.uid()::text = user_id);
+          `.trim()
+        })
+      });
+
+      if (mgmtRes.ok) {
+        log('✅ 表创建成功！（Management API）', 'ok');
+        document.getElementById('btn-delete').style.display = 'block';
+      } else {
+        const errText = await mgmtRes.text();
+        log(`❌ Management API 也失败了: ${mgmtRes.status}`, 'err');
+        log(errText, 'err');
+      }
+    } else if (res.ok) {
+      log('✅ 表创建成功！（RPC）', 'ok');
+      document.getElementById('btn-delete').style.display = 'block';
+    } else {
+      const errText = await res.text();
+      log(`❌ 建表失败: ${res.status}`, 'err');
+      log(errText, 'err');
+    }
+  } catch (err) {
+    log(`❌ 网络错误: ${err.message}`, 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ 一键创建 lx_profile 表';
+}
+
+async function deleteTable() {
+  const key = document.getElementById('service-key').value.trim();
+  if (!key) return log('请先输入 Service Role Key', 'err');
+  if (!confirm('确定要删除 lx_profile 表吗？所有主线和 Todo 数据将丢失！')) return;
+
+  log('>>> 正在删除 lx_profile 表...', 'info');
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+        'apikey': key
+      },
+      body: JSON.stringify({ sql: 'DROP TABLE IF EXISTS lx_profile;' })
+    });
+
+    if (res.ok) {
+      log('🗑 表已删除', 'ok');
+      document.getElementById('btn-delete').style.display = 'none';
+    } else {
+      log(`❌ 删除失败: ${res.status}`, 'err');
+    }
+  } catch (err) {
+    log(`❌ 错误: ${err.message}`, 'err');
+  }
+}
+</script>
+</body>
+</html>
