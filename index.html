@@ -1220,6 +1220,7 @@ async function sendAiMessage() {
   aiLoading = true;
   btn.disabled = true;
   appendAiBubble('user', msg);
+  saveAiHistory('user', msg);
 
   const typingEl = appendAiBubble('assistant', '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>', true);
 
@@ -1253,6 +1254,7 @@ async function sendAiMessage() {
     const data = await res.json();
     const reply = data.choices?.[0]?.message?.content || '（AI 没有返回内容）';
     typingEl.innerHTML = escHtml(reply);
+    saveAiHistory('assistant', reply);
   } catch (err) {
     console.error('AI request failed:', err);
     typingEl.innerHTML = escHtml('网络请求失败，请检查连接后重试。');
@@ -1295,14 +1297,14 @@ function appendAiBubble(role, content, isTyping) {
   div.innerHTML = '<div class="ai-bubble-inner">' + content + '</div>';
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  // 保存对话到 localStorage
-  if (!isTyping) {
-    const history = JSON.parse(localStorage.getItem('lingxi_ai_history') || '[]');
-    history.push({ role, content, time: Date.now() });
-    if (history.length > 100) history.splice(0, history.length - 100);
-    localStorage.setItem('lingxi_ai_history', JSON.stringify(history));
-  }
   return div;
+}
+
+function saveAiHistory(role, content) {
+  const history = JSON.parse(localStorage.getItem('lingxi_ai_history') || '[]');
+  history.push({ role, content, time: Date.now() });
+  if (history.length > 100) history.splice(0, history.length - 100);
+  localStorage.setItem('lingxi_ai_history', JSON.stringify(history));
 }
 
 function loadAiHistory() {
