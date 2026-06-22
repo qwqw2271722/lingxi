@@ -1276,7 +1276,7 @@ function appendAiBubble(role, content, isTyping) {
   div.innerHTML = '<div class="ai-bubble-inner">' + content + '</div>';
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  return div;
+  return div.querySelector('.ai-bubble-inner');
 }
 
 function saveAiHistory(role, content) {
