@@ -1259,7 +1259,7 @@ async function sendAiMessage() {
 
     const data = await res.json();
     const reply = data.reply || '（AI 没有返回内容）';
-    typingEl.innerHTML = escHtml(reply);
+    typingEl.innerHTML = escHtml(reply).replace(/\n/g, '<br>');
     saveAiHistory('assistant', reply);
   } catch (err) {
     console.error('AI request failed:', err);
@@ -1294,7 +1294,7 @@ function loadAiHistory() {
     // 只显示包含三段式结构关键标识的 AI 回复，隐藏旧版回复
     history.forEach(h => {
       if (h.role === 'user' || (h.role === 'assistant' && h.content.includes('需要我帮你把这些想法整理归档吗'))) {
-        appendAiBubble(h.role, escHtml(h.content));
+        appendAiBubble(h.role, escHtml(h.content).replace(/\n/g, '<br>'));
       }
     });
   } else {
