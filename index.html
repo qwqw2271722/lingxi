@@ -857,8 +857,15 @@ function renderDetailTags(tags) {
   if (!pool) return;
   pool.innerHTML = allHistoryTags.map(tag => {
     const isActive = tags.includes(tag);
-    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'};" onclick="toggleDetailTag('${tag}')">${tag}</span>`;
+    const escapedTag = tag.replace(/'/g, "\\'");
+    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'};" onclick="toggleDetailTag('${escapedTag}')">${tag}<span style="margin-left:6px;font-size:10px;opacity:0.4;cursor:pointer;" onclick="event.stopPropagation();removeDetailTag('${escapedTag}')" onmouseover="this.style.opacity='1';this.style.color='#e74c3c'" onmouseout="this.style.opacity='0.4';this.style.color=''">×</span></span>`;
   }).join('');
+}
+
+function removeDetailTag(tag) {
+  detailActiveTags = detailActiveTags.filter(t => t !== tag);
+  allHistoryTags = allHistoryTags.filter(t => t !== tag);
+  renderDetailTags(detailActiveTags);
 }
 
 function toggleDetailTag(tag) {
