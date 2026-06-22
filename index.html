@@ -364,7 +364,7 @@ body {
           <div class="card home-todo-section">
             <div class="mainline-label" id="label-home-todos">目标清单</div>
             <div class="todo-input-row">
-              <input type="text" class="todo-input" id="home-todo-input" placeholder="新目标 + Enter..." onkeydown="homeTodoKey(event)">
+              <input type="text" class="todo-input" id="home-todo-input" autocomplete="off" placeholder="新目标 + Enter..." onkeydown="homeTodoKey(event)">
             </div>
             <div id="home-todo-list"></div>
           </div>
@@ -424,6 +424,7 @@ body {
     <div class="view" id="view-review">
       <div class="topbar"><span class="page-label" id="label-ai-review">AI 复盘</span><button class="ai-clear-btn" onclick="clearAiHistory()" title="清空对话" style="font-size:18px;line-height:1;">🗑</button></div>
       <div class="content" id="review-content">
+        <button class="ai-review-btn" onclick="quickReview()" style="display:block; width:100%; padding:10px 0; margin-bottom:12px; border:1px dashed rgba(0,0,0,0.12); border-radius:var(--radius-sm); background:transparent; color:var(--text-secondary); font-size:13px; cursor:pointer; font-family:inherit; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent-orange)';this.style.color='var(--accent-orange)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.12)';this.style.color='var(--text-secondary)'">🔍 复盘想法</button>
         <div class="ai-chat-container">
           <div class="ai-messages" id="ai-messages"></div>
           <div class="ai-input-row">
@@ -858,8 +859,16 @@ function renderDetailTags(tags) {
   if (!pool) return;
   pool.innerHTML = allHistoryTags.map(tag => {
     const isActive = tags.includes(tag);
-    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'};" onclick="toggleDetailTag('${tag}')">${tag}</span>`;
+    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'}; display: inline-flex; align-items: center; gap: 6px;" onclick="toggleDetailTag('${tag}')">${tag}${isActive ? `<span onclick="event.stopPropagation();removeDetailTag('${tag}')" style="font-size:13px;line-height:1;opacity:0.7;cursor:pointer;" title="删除标签">×</span>` : ''}</span>`;
   }).join('');
+}
+
+function removeDetailTag(tag) {
+  // 从当前想法标签中移除
+  detailActiveTags = detailActiveTags.filter(t => t !== tag);
+  // 从历史标签库中移除
+  allHistoryTags = allHistoryTags.filter(t => t !== tag);
+  renderDetailTags(detailActiveTags);
 }
 
 function toggleDetailTag(tag) {
@@ -1065,6 +1074,9 @@ async function handleAuthAction() {
 }
 
 async function handleLogout() {
+  // 修复：退出登录前清空首页目标清单输入框，防止浏览器自动填充
+  const homeInput = document.getElementById('home-todo-input');
+  if (homeInput) homeInput.value = '';
   await sb.auth.signOut();
   currentUser = null;
   state.entries = [...sandboxEntries];
@@ -1202,6 +1214,13 @@ function aiInputKey(e) {
     e.preventDefault();
     sendAiMessage();
   }
+}
+
+function quickReview() {
+  const input = document.getElementById('ai-input');
+  if (!input) return;
+  input.value = '请帮我复盘一下最近的想法';
+  sendAiMessage();
 }
 
 async function sendAiMessage() {
