@@ -819,9 +819,7 @@ async function saveEntry() {
     state.entries.unshift({ id: 'local_' + Date.now(), text: text, tags: tagsToSave, createdAt: new Date().toISOString() });
   } else {
     try {
-      // 容错降级机制：如果数据库没有 tags 列，拼接至尾部
-      const fallbackText = text + (tagsToSave.length ? '\n\nTags: ' + tagsToSave.join(', ') : '');
-      const { data, error } = await sb.from('lx_entries').insert({ user_id: currentUser.id, text: fallbackText, source: '随手记' }).select().single();
+      const { data, error } = await sb.from('lx_entries').insert({ user_id: currentUser.id, text: text, source: '随手记' }).select().single();
       if (error) throw error;
       if (data) state.entries.unshift({ id: data.id, text: data.text, tags: tagsToSave, createdAt: data.created_at });
     } catch (err) {
