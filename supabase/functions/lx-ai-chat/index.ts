@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // NVIDIA NIM API Key — 免费无限调用
 const NVIDIA_API_KEY = "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";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const AI_MODEL = "nvidia/nemotron-3-nano-30b-a3b";
+const AI_MODEL = "qwen/qwen3.5-122b-a10b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +68,7 @@ ${entriesCtx || '(暂无)'}`,
           { role: "user", content: message },
         ],
         temperature: 0.6,
-        max_tokens: 512,
+        max_tokens: 384,
         top_p: 0.95,
       }),
     });
