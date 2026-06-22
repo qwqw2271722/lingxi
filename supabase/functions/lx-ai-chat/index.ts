@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // NVIDIA NIM API Key — 免费无限调用
 const NVIDIA_API_KEY = "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";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const AI_MODEL = "qwen/qwen2.5-7b-instruct";
+const AI_MODEL = "stepfun-ai/step-3.7-flash";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
