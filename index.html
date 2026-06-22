@@ -1275,7 +1275,12 @@ function loadAiHistory() {
   const history = JSON.parse(localStorage.getItem('lingxi_ai_history') || '[]');
   if (history.length > 0) {
     container.innerHTML = '';
-    history.forEach(h => appendAiBubble(h.role, escHtml(h.content)));
+    // 只显示包含三段式结构关键标识的 AI 回复，隐藏旧版回复
+    history.forEach(h => {
+      if (h.role === 'user' || (h.role === 'assistant' && h.content.includes('需要我帮你把这些想法整理归档吗'))) {
+        appendAiBubble(h.role, escHtml(h.content));
+      }
+    });
   } else {
     container.innerHTML = '<div class="ai-welcome">👋 我是你的 AI 复盘助手，基于你的想法条目帮你深度思考。<br>试试问我："最近的想法有什么共同主题？"</div>';
   }
