@@ -859,16 +859,8 @@ function renderDetailTags(tags) {
   if (!pool) return;
   pool.innerHTML = allHistoryTags.map(tag => {
     const isActive = tags.includes(tag);
-    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'}; display: inline-flex; align-items: center; gap: 6px;" onclick="toggleDetailTag('${tag}')">${tag}${isActive ? `<span onclick="event.stopPropagation();removeDetailTag('${tag}')" style="font-size:13px;line-height:1;opacity:0.7;cursor:pointer;" title="删除标签">×</span>` : ''}</span>`;
+    return `<span style="padding: 4px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; transition: all 0.2s; border: 1px solid ${isActive ? 'var(--text)' : 'rgba(0,0,0,0.08)'}; background: ${isActive ? 'var(--text)' : 'transparent'}; color: ${isActive ? '#fff' : 'var(--text-secondary)'};" onclick="toggleDetailTag('${tag}')">${tag}</span>`;
   }).join('');
-}
-
-function removeDetailTag(tag) {
-  // 从当前想法标签中移除
-  detailActiveTags = detailActiveTags.filter(t => t !== tag);
-  // 从历史标签库中移除
-  allHistoryTags = allHistoryTags.filter(t => t !== tag);
-  renderDetailTags(detailActiveTags);
 }
 
 function toggleDetailTag(tag) {
