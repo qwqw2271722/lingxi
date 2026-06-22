@@ -68,7 +68,7 @@ ${entriesCtx || '(暂无)'}`,
           { role: "user", content: message },
         ],
         temperature: 0.6,
-        max_tokens: 384,
+        max_tokens: 768,
         top_p: 0.95,
       }),
     });
