@@ -83,7 +83,7 @@ ${entriesCtx || '(暂无)'}`,
     }
 
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || "（AI 没有返回内容）";
+    const reply = (data.choices?.[0]?.message?.content || "（AI 没有返回内容）").replace(/^\n+/, '');
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
