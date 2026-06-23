@@ -1267,11 +1267,13 @@ async function sendAiMessage() {
     const reply = data.reply || '（AI 没有返回内容）';
     typingEl.innerHTML = escHtml(reply).replace(/\n/g, '<br>');
     // 追加"需要/不需要"按钮
-    const bubbleDiv = typingEl.closest('.ai-bubble');
-    const actionRow = document.createElement('div');
-    actionRow.className = 'ai-action-row';
-    actionRow.innerHTML = '<button class="ai-action-btn ai-action-yes" onclick="extractCognitions(this)">需要</button><button class="ai-action-btn ai-action-no" onclick="this.closest(\'.ai-action-row\').remove()">不需要</button>';
-    bubbleDiv.appendChild(actionRow);
+    const bubbleDiv = typingEl.parentElement;
+    if (bubbleDiv && bubbleDiv.classList.contains('ai-bubble')) {
+      const actionRow = document.createElement('div');
+      actionRow.className = 'ai-action-row';
+      actionRow.innerHTML = '<button class="ai-action-btn ai-action-yes" onclick="extractCognitions(this)">需要</button><button class="ai-action-btn ai-action-no" onclick="this.closest(\'.ai-action-row\').remove()">不需要</button>';
+      bubbleDiv.appendChild(actionRow);
+    }
     saveAiHistory('assistant', reply);
   } catch (err) {
     console.error('AI request failed:', err);
