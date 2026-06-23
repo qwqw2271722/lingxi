@@ -1,0 +1,23 @@
+{
+  "name": "lingxi-deploy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test_cognition_round2.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qwqw2271722/lingxi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/qwqw2271722/lingxi/issues"
+  },
+  "homepage": "https://github.com/qwqw2271722/lingxi#readme",
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
+}
