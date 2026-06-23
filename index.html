@@ -1405,7 +1405,9 @@ function renderCognitions() {
 
 function deleteCognition(id) {
   state.cognitions = state.cognitions.filter(c => c.id !== id);
+  saveCognitions();
   renderCognitions();
+  showToast('已删除一条认知');
 }
 
 function showToast(msg) {
