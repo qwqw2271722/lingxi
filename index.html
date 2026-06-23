@@ -1361,7 +1361,9 @@ function extractCognitions(btn) {
     }
   }
   if (cognitions.length > 0) {
-    state.cognitions.push(...cognitions.map(text => ({ id: 'cog_' + Date.now() + '_' + Math.random().toString(36).slice(2,8), text, createdAt: new Date().toISOString() })));
+    const baseTime = Date.now();
+    state.cognitions.push(...cognitions.map((text, i) => ({ id: 'cog_' + baseTime + '_' + i + '_' + Math.random().toString(36).slice(2,8), text, createdAt: new Date().toISOString() })));
+    saveCognitions();
     renderCognitions();
     // toast 提示
     showToast('已添加 ' + cognitions.length + ' 条认知');
