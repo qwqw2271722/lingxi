@@ -1188,6 +1188,7 @@ async function init() {
   const d = new Date();
   document.getElementById('today-date').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
   state.entries = [...sandboxEntries];
+  loadCognitions();
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     currentUser = session.user;
@@ -1311,8 +1312,17 @@ function loadAiHistory() {
     container.innerHTML = '';
     // 只显示包含三段式结构关键标识的 AI 回复，隐藏旧版回复
     history.forEach(h => {
-      if (h.role === 'user' || (h.role === 'assistant' && (h.content.includes('需要我帮你把提炼的新认知放进认知库吗') || h.content.includes('需要我帮你把这些想法整理归档吗')))) {
+      if (h.role === 'user') {
         appendAiBubble(h.role, escHtml(h.content).replace(/\n/g, '<br>'));
+      } else if (h.role === 'assistant' && (h.content.includes('需要我帮你把提炼的新认知放进认知库吗') || h.content.includes('需要我帮你把这些想法整理归档吗'))) {
+        appendAiBubble(h.role, escHtml(h.content).replace(/\n/g, '<br>'));
+        // 恢复"需要/不需要"按钮行
+        if (h.content.includes('• ')) {
+          const actionRow = document.createElement('div');
+          actionRow.className = 'ai-action-row';
+          actionRow.innerHTML = '<button class="ai-action-btn ai-action-yes" onclick="extractCognitions(this)">需要</button><button class="ai-action-btn ai-action-no" onclick="this.closest(\'.ai-action-row\').remove()">不需要</button>';
+          container.appendChild(actionRow);
+        }
       }
     });
   } else {
@@ -1379,9 +1389,9 @@ function renderCognitions() {
   if (homeCards) {
     if (state.cognitions.length === 0) {
       homeCards.innerHTML = '';
-      homeEmpty.style.display = 'block';
+      if (homeEmpty) homeEmpty.style.display = 'block';
     } else {
-      homeEmpty.style.display = 'none';
+      if (homeEmpty) homeEmpty.style.display = 'none';
       homeCards.innerHTML = state.cognitions.slice(-6).reverse().map(c => 
         '<div class="cog-card" onclick="deleteCognition(\'' + c.id + '\')"><div class="cog-card-text">' + escHtml(c.text) + '</div></div>'
       ).join('');
@@ -1393,9 +1403,9 @@ function renderCognitions() {
   if (cogList) {
     if (state.cognitions.length === 0) {
       cogList.innerHTML = '';
-      cogEmpty.style.display = 'block';
+      if (cogEmpty) cogEmpty.style.display = 'block';
     } else {
-      cogEmpty.style.display = 'none';
+      if (cogEmpty) cogEmpty.style.display = 'none';
       cogList.innerHTML = state.cognitions.slice().reverse().map(c => 
         '<div class="cog-card" style="max-width:100%;min-width:auto;margin-bottom:10px;" onclick="deleteCognition(\'' + c.id + '\')"><div class="cog-card-text">' + escHtml(c.text) + '</div><div style="font-size:10px;color:var(--text-tertiary);margin-top:6px;">点击删除</div></div>'
       ).join('');
@@ -1408,6 +1418,13 @@ function deleteCognition(id) {
   saveCognitions();
   renderCognitions();
   showToast('已删除一条认知');
+}
+
+function saveCognitions() {
+  localStorage.setItem('lingxi_cognitions', JSON.stringify(state.cognitions));
+}
+function loadCognitions() {
+  state.cognitions = JSON.parse(localStorage.getItem('lingxi_cognitions') || '[]');
 }
 
 function showToast(msg) {
