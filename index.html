@@ -1166,6 +1166,7 @@ async function loadEntriesFromDB() {
       .select('*')
       .eq('user_id', currentUser.id)
       .neq('text', '__profile__')
+      .neq('text', '__cognitions__')
       .order('created_at', { ascending: false });
     if (error) throw error;
     if (data && data.length > 0) {
@@ -1188,12 +1189,14 @@ async function init() {
   const d = new Date();
   document.getElementById('today-date').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
   state.entries = [...sandboxEntries];
-  loadCognitions();
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     currentUser = session.user;
     await loadProfile();
     await loadEntriesFromDB();
+    await loadCognitions();
+  } else {
+    loadCognitions(); // 未登录时从 localStorage 恢复
   }
   renderProfilePanel();
   renderAll();
@@ -1203,12 +1206,13 @@ sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
     currentUser = session.user;
     renderProfilePanel();
-    Promise.all([loadProfile(), loadEntriesFromDB()]).then(() => renderAll());
+    Promise.all([loadProfile(), loadEntriesFromDB(), loadCognitions()]).then(() => renderAll());
   } else if (event === 'SIGNED_OUT') {
     currentUser = null;
     state.entries = [...sandboxEntries];
     state.mainline = '';
     state.todos = [];
+    state.cognitions = [];
     renderProfilePanel();
     renderAll();
   }
@@ -1420,10 +1424,43 @@ function deleteCognition(id) {
   showToast('已删除一条认知');
 }
 
-function saveCognitions() {
-  localStorage.setItem('lingxi_cognitions', JSON.stringify(state.cognitions));
+async function saveCognitions() {
+  if (!currentUser) { localStorage.setItem('lingxi_cognitions', JSON.stringify(state.cognitions)); return; }
+  const cognitionsData = JSON.stringify(state.cognitions);
+  const { data: existing } = await sb.from('lx_entries')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('text', '__cognitions__')
+    .limit(1);
+  if (existing && existing.length > 0) {
+    await sb.from('lx_entries').update({
+      source: cognitionsData,
+      updated_at: new Date().toISOString()
+    }).eq('id', existing[0].id);
+  } else {
+    await sb.from('lx_entries').insert({
+      user_id: currentUser.id,
+      text: '__cognitions__',
+      source: cognitionsData,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
 }
-function loadCognitions() {
+async function loadCognitions() {
+  if (currentUser) {
+    try {
+      const { data } = await sb.from('lx_entries')
+        .select('source')
+        .eq('user_id', currentUser.id)
+        .eq('text', '__cognitions__')
+        .maybeSingle();
+      if (data && data.source) {
+        state.cognitions = JSON.parse(data.source);
+        return;
+      }
+    } catch (err) { console.error('加载云端认知失败:', err); }
+  }
   state.cognitions = JSON.parse(localStorage.getItem('lingxi_cognitions') || '[]');
 }
 
