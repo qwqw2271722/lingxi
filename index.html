@@ -304,6 +304,11 @@ body {
 .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 
+.ai-action-row { display: flex; gap: 8px; margin-top: 8px; padding-left: 4px; }
+.ai-action-btn { padding: 6px 16px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.1); font-size: 12px; cursor: pointer; background: transparent; color: var(--text-secondary); transition: all 0.2s; }
+.ai-action-yes:hover { background: var(--text); color: #fff; border-color: var(--text); }
+.ai-action-no:hover { background: rgba(0,0,0,0.05); }
+
 /* ======== 🌟 移动端响应式布局重构 ======== */
 @media (max-width: 768px) {
   body { padding: 12px; padding-top: calc(12px + var(--safe-area-top)); padding-bottom: calc(12px + var(--safe-area-bottom)); height: auto; overflow-y: auto; align-items: flex-start; }
@@ -674,6 +679,7 @@ function renderAll() {
   renderHomeEntries();
   renderAllEntries();
   renderStats();
+  renderCognitions();
 }
 
 // ====== 🗓️ 时间矩阵渲染 ======
@@ -1260,6 +1266,12 @@ async function sendAiMessage() {
     const data = await res.json();
     const reply = data.reply || '（AI 没有返回内容）';
     typingEl.innerHTML = escHtml(reply).replace(/\n/g, '<br>');
+    // 追加"需要/不需要"按钮
+    const bubbleDiv = typingEl.closest('.ai-bubble');
+    const actionRow = document.createElement('div');
+    actionRow.className = 'ai-action-row';
+    actionRow.innerHTML = '<button class="ai-action-btn ai-action-yes" onclick="extractCognitions(this)">需要</button><button class="ai-action-btn ai-action-no" onclick="this.closest(\'.ai-action-row\').remove()">不需要</button>';
+    bubbleDiv.appendChild(actionRow);
     saveAiHistory('assistant', reply);
   } catch (err) {
     console.error('AI request failed:', err);
@@ -1293,7 +1305,7 @@ function loadAiHistory() {
     container.innerHTML = '';
     // 只显示包含三段式结构关键标识的 AI 回复，隐藏旧版回复
     history.forEach(h => {
-      if (h.role === 'user' || (h.role === 'assistant' && h.content.includes('需要我帮你把这些想法整理归档吗'))) {
+      if (h.role === 'user' || (h.role === 'assistant' && (h.content.includes('需要我帮你把提炼的新认知放进认知库吗') || h.content.includes('需要我帮你把这些想法整理归档吗')))) {
         appendAiBubble(h.role, escHtml(h.content).replace(/\n/g, '<br>'));
       }
     });
@@ -1315,6 +1327,74 @@ function clearAiHistory() {
   if (container) {
     container.innerHTML = '<div class="ai-welcome">👋 我是你的 AI 复盘助手，基于你的想法条目帮你深度思考。<br>试试问我："最近的想法有什么共同主题？"</div>';
   }
+}
+
+// ====== 🧠 认知提取与渲染 ======
+function extractCognitions(btn) {
+  const bubble = btn.closest('.ai-bubble');
+  const inner = bubble.querySelector('.ai-bubble-inner');
+  const html = inner.innerHTML;
+  // 从 innerHTML 提取认知行（• 开头，<br> 分隔）
+  const lines = html.split(/<br\s*\/?>/i);
+  const cognitions = [];
+  for (const line of lines) {
+    const trimmed = line.replace(/<\/?[^>]+>/g, '').trim();
+    if (trimmed.startsWith('• ')) {
+      cognitions.push(trimmed.slice(2)); // 去掉 • 前缀
+    }
+  }
+  if (cognitions.length > 0) {
+    state.cognitions.push(...cognitions.map(text => ({ id: 'cog_' + Date.now() + '_' + Math.random().toString(36).slice(2,8), text, createdAt: new Date().toISOString() })));
+    renderCognitions();
+    // toast 提示
+    showToast('已添加 ' + cognitions.length + ' 条认知');
+  }
+  // 移除按钮行
+  btn.closest('.ai-action-row').remove();
+}
+
+function renderCognitions() {
+  // 首页认知卡片
+  const homeCards = document.getElementById('home-cog-cards');
+  const homeEmpty = document.getElementById('home-cog-empty');
+  if (homeCards) {
+    if (state.cognitions.length === 0) {
+      homeCards.innerHTML = '';
+      homeEmpty.style.display = 'block';
+    } else {
+      homeEmpty.style.display = 'none';
+      homeCards.innerHTML = state.cognitions.slice(-6).reverse().map(c => 
+        '<div class="cog-card" onclick="deleteCognition(\'' + c.id + '\')"><div class="cog-card-text">' + escHtml(c.text) + '</div></div>'
+      ).join('');
+    }
+  }
+  // 认知库页
+  const cogList = document.getElementById('cog-list');
+  const cogEmpty = document.getElementById('cog-empty');
+  if (cogList) {
+    if (state.cognitions.length === 0) {
+      cogList.innerHTML = '';
+      cogEmpty.style.display = 'block';
+    } else {
+      cogEmpty.style.display = 'none';
+      cogList.innerHTML = state.cognitions.slice().reverse().map(c => 
+        '<div class="cog-card" style="max-width:100%;min-width:auto;margin-bottom:10px;" onclick="deleteCognition(\'' + c.id + '\')"><div class="cog-card-text">' + escHtml(c.text) + '</div><div style="font-size:10px;color:var(--text-tertiary);margin-top:6px;">点击删除</div></div>'
+      ).join('');
+    }
+  }
+}
+
+function deleteCognition(id) {
+  state.cognitions = state.cognitions.filter(c => c.id !== id);
+  renderCognitions();
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;transition:opacity 0.3s;';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
 }
 
 init();
