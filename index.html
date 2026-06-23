@@ -562,6 +562,7 @@ function handleTagInput(e) {
         if (val && !allHistoryTags.includes(val)) {
             allHistoryTags.push(val);
             currentActiveTags.push(val);
+            saveProfileToDB();
         } else if (val && !currentActiveTags.includes(val)) {
             currentActiveTags.push(val);
         }
@@ -611,7 +612,7 @@ async function saveMainline() {
   }
 }
 
-// 将 mainline + todos 存入 lx_entries 表（特殊条目：text='__profile__'）
+// 将 mainline + todos + allHistoryTags 存入 lx_entries 表（特殊条目：text='__profile__'）
 async function saveProfileToDB() {
   if (!currentUser) return;
   // 查找已有的 profile 条目
@@ -620,7 +621,7 @@ async function saveProfileToDB() {
     .eq('user_id', currentUser.id)
     .eq('text', '__profile__')
     .limit(1);
-  const profileData = { mainline: state.mainline, todos: state.todos };
+  const profileData = { mainline: state.mainline, todos: state.todos, allHistoryTags };
   if (existing && existing.length > 0) {
     await sb.from('lx_entries').update({
       source: JSON.stringify(profileData),
@@ -877,6 +878,7 @@ function renderDetailTags(tags) {
 function removeDetailTag(tag) {
   detailActiveTags = detailActiveTags.filter(t => t !== tag);
   allHistoryTags = allHistoryTags.filter(t => t !== tag);
+  saveProfileToDB();
   renderDetailTags(detailActiveTags);
 }
 
@@ -893,7 +895,7 @@ function handleDetailTagInput(e) {
   if (e.key === 'Enter') {
     e.preventDefault();
     const val = e.target.value.trim();
-    if (val && !allHistoryTags.includes(val)) allHistoryTags.push(val);
+    if (val && !allHistoryTags.includes(val)) { allHistoryTags.push(val); saveProfileToDB(); }
     if (val && !detailActiveTags.includes(val)) detailActiveTags.push(val);
     e.target.value = '';
     renderDetailTags(detailActiveTags);
@@ -1153,6 +1155,9 @@ async function loadProfile() {
       const profile = JSON.parse(data.source);
       state.mainline = profile.mainline || '';
       state.todos = Array.isArray(profile.todos) ? profile.todos : [];
+      if (Array.isArray(profile.allHistoryTags) && profile.allHistoryTags.length > 0) {
+        allHistoryTags = profile.allHistoryTags;
+      }
     }
   } catch (err) {
     console.error('加载用户配置失败:', err);
@@ -1213,6 +1218,7 @@ sb.auth.onAuthStateChange((event, session) => {
     state.mainline = '';
     state.todos = [];
     state.cognitions = [];
+    allHistoryTags = ['设计美学', '深度复盘', '极简主义', '灵感碎片'];
     renderProfilePanel();
     renderAll();
   }
